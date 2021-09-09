@@ -833,4 +833,7 @@ GitHub Repo for this project: [scaffold-eth-challenge-1-decentralized-staking](h
 
 ## Did you like this content? Follow me for more!
 
-- GitHub: [https://github.com/StErMi]
+- GitHub: https://github.com/StErMi
+- Twitter: https://twitter.com/StErMi
+- Medium: https://medium.com/@stermi
+- Dev to: https://dev.to/stermi
