@@ -1,4 +1,4 @@
-# 🏗 scaffold-eth | 🏰 BuidlGuidl
+# 🏗 scaffold-eth | 🏰 BuidlGuidl | Speedrun challenge 1
 
 ## The goal of the dApp
 
@@ -74,7 +74,103 @@ In this part of the exercise, we want to allow users to stake some ETH in our co
 
 ### Contract code updated
 
-{% gist https://gist.github.com/StErMi/a23b9ae7fd49ae3e6f3b18b3815e76d0 %}
+```ts
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "hardhat/console.sol";
+import "./ExampleExternalContract.sol";
+
+
+/**
+* @title Stacker Contract
+* @author scaffold-eth
+* @notice A contract that allow users to stack ETH
+*/
+contract Staker {
+
+  // External contract that will old stacked funds
+  ExampleExternalContract public exampleExternalContract;
+
+  // Balances of the user's stacked funds
+  mapping(address => uint256) public balances;
+
+  // Staking threshold
+  uint256 public constant threshold = 1 ether;
+
+  // Contract's Events
+  event Stake(address indexed sender, uint256 amount);
+
+  /**
+  * @notice Contract Constructor
+  * @param exampleExternalContractAddress Address of the external contract that will hold stacked funds
+  */
+  constructor(address exampleExternalContractAddress) public {
+    exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);
+  }
+
+  /**
+  * @notice Stake method that update the user's balance
+  */
+  function stake() public payable {
+    // update the user's balance
+    balances[msg.sender] += msg.value;
+
+    // emit the event to notify the blockchain that we have correctly Staked some fund for the user
+    emit Stake(msg.sender, msg.value);
+  }
+
+}
+```
+
+```ts
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "hardhat/console.sol";
+import "./ExampleExternalContract.sol";
+
+
+/**
+* @title Stacker Contract
+* @author scaffold-eth
+* @notice A contract that allow users to stack ETH
+*/
+contract Staker {
+
+  // External contract that will old stacked funds
+  ExampleExternalContract public exampleExternalContract;
+
+  // Balances of the user's stacked funds
+  mapping(address => uint256) public balances;
+
+  // Staking threshold
+  uint256 public constant threshold = 1 ether;
+
+  // Contract's Events
+  event Stake(address indexed sender, uint256 amount);
+
+  /**
+  * @notice Contract Constructor
+  * @param exampleExternalContractAddress Address of the external contract that will hold stacked funds
+  */
+  constructor(address exampleExternalContractAddress) public {
+    exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);
+  }
+
+  /**
+  * @notice Stake method that update the user's balance
+  */
+  function stake() public payable {
+    // update the user's balance
+    balances[msg.sender] += msg.value;
+
+    // emit the event to notify the blockchain that we have correctly Staked some fund for the user
+    emit Stake(msg.sender, msg.value);
+  }
+
+}
+```
 
 Some clarification:
 
@@ -100,7 +196,7 @@ Now, deploy the contract, get some funds from the Faucet and try to stake some E
 - Is your staking balance updated?
 - Is the contract’s balance updated?
 
-{% youtube KfoNrlYxBKY %}
+[![IMAGE ALT TEXT](https://img.youtube.com/vi/KfoNrlYxBKY/0.jpg)](http://www.youtube.com/watch?v=KfoNrlYxBKY 'scaffold-eth Challgen 1 Stake app - Part 1')
 
 If you have checked all these marks we can continue to part 2 of the exercise.
 
@@ -134,8 +230,122 @@ These conditions are:
 
 ### Contract code updated
 
-{% gist https://gist.github.com/StErMi/e9bba755aa9fe4d206fc0eae710340a4 %}
-{% gist https://gist.github.com/CristinaSolana/1885435 %}
+```ts
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
+
+import "hardhat/console.sol";
+import "./ExampleExternalContract.sol";
+
+
+/**
+* @title Stacker Contract
+* @author scaffold-eth
+* @notice A contract that allow users to stack ETH
+*/
+contract Staker {
+
+  // External contract that will old stacked funds
+  ExampleExternalContract public exampleExternalContract;
+
+  // Balances of the user's stacked funds
+  mapping(address => uint256) public balances;
+
+  // Staking threshold
+  uint256 public constant threshold = 1 ether;
+
+  // Staking deadline
+  uint256 public deadline = block.timestamp + 30 seconds;
+
+  // Contract's Events
+  event Stake(address indexed sender, uint256 amount);
+
+  // Contract's Modifiers
+  /**
+  * @notice Modifier that require the deadline to be reached or not
+  * @param requireReached Check if the deadline has reached or not
+  */
+  modifier deadlineReached( bool requireReached ) {
+    uint256 timeRemaining = timeLeft();
+    if( requireReached ) {
+      require(timeRemaining == 0, "Deadline is not reached yet");
+    } else {
+      require(timeRemaining > 0, "Deadline is already reached");
+    }
+    _;
+  }
+
+  /**
+  * @notice Modifier that require the external contract to not be completed
+  */
+  modifier stakeNotCompleted() {
+    bool completed = exampleExternalContract.completed();
+    require(!completed, "staking process already completed");
+    _;
+  }
+
+
+  /**
+  * @notice Contract Constructor
+  * @param exampleExternalContractAddress Address of the external contract that will hold stacked funds
+  */
+  constructor(address exampleExternalContractAddress) {
+    exampleExternalContract = ExampleExternalContract(exampleExternalContractAddress);
+  }
+
+  function execute() public stakeNotCompleted deadlineReached(false) {
+    uint256 contractBalance = address(this).balance;
+
+    // check the contract has enough ETH to reach the treshold
+    require(contractBalance >= threshold, "Threshold not reached");
+
+    // Execute the external contract, transfer all the balance to the contract
+    // (bool sent, bytes memory data) = exampleExternalContract.complete{value: contractBalance}();
+    (bool sent,) = address(exampleExternalContract).call{value: contractBalance}(abi.encodeWithSignature("complete()"));
+    require(sent, "exampleExternalContract.complete failed");
+  }
+
+  /**
+  * @notice Stake method that update the user's balance
+  */
+  function stake() public payable deadlineReached(false) stakeNotCompleted {
+    // update the user's balance
+    balances[msg.sender] += msg.value;
+
+    // emit the event to notify the blockchain that we have correctly Staked some fund for the user
+    emit Stake(msg.sender, msg.value);
+  }
+
+  /**
+  * @notice Allow users to withdraw their balance from the contract only if deadline is reached but the stake is not completed
+  */
+  function withdraw() public deadlineReached(true) stakeNotCompleted {
+    uint256 userBalance = balances[msg.sender];
+
+    // check if the user has balance to withdraw
+    require(userBalance > 0, "You don't have balance to withdraw");
+
+    // reset the balance of the user
+    balances[msg.sender] = 0;
+
+    // Transfer balance back to the user
+    (bool sent,) = msg.sender.call{value: userBalance}("");
+    require(sent, "Failed to send user balance back to the user");
+  }
+
+  /**
+  * @notice The number of seconds remaining until the deadline is reached
+  */
+  function timeLeft() public view returns (uint256 timeleft) {
+    if( block.timestamp >= deadline ) {
+      return 0;
+    } else {
+      return deadline - block.timestamp;
+    }
+  }
+
+}
+```
 
 ### Why is the code different between the one from the original challenge?
 
@@ -165,7 +375,7 @@ Now deploy the updated contract with `yarn deploy` and test it locally.
 4.  Can you execute the contract even if the threshold is not met?
 5.  Can you execute the contract more than once?
 
-{% youtube 193ZeR17dtk %}
+[![IMAGE ALT TEXT](https://img.youtube.com/vi/193ZeR17dtk/0.jpg)](http://www.youtube.com/watch?v=193ZeR17dtk 'scaffold-eth Challenge 1 Stake App - final')
 
 ## Exercise Part 3: Test Coverage
 
@@ -221,7 +431,60 @@ The next time that your contract will be called the `block.timestamp` used in `t
 
 Let’s review one test and then I’ll post the entire code explaining only some specific code. The code about is covering the `execute()` function of our code
 
-{% gist https://gist.github.com/StErMi/ec84c0ce2aa1a188ef47793d0b08ffa7 %}
+```ts
+describe('Test execute() method', () => {
+  it('execute reverted because stake amount not reached threshold', async () => {
+    await expect(stakerContract.connect(addr1).execute()).to.be.revertedWith(
+      'Threshold not reached'
+    );
+  });
+
+  it('execute reverted because external contract already completed', async () => {
+    const amount = ethers.utils.parseEther('1');
+    await stakerContract.connect(addr1).stake({
+      value: amount,
+    });
+    await stakerContract.connect(addr1).execute();
+
+    await expect(stakerContract.connect(addr1).execute()).to.be.revertedWith(
+      'staking process already completed'
+    );
+  });
+
+  it('execute reverted because deadline is reached', async () => {
+    // reach the deadline
+    await increaseWorldTimeInSeconds(180, true);
+
+    await expect(stakerContract.connect(addr1).execute()).to.be.revertedWith(
+      'Deadline is already reached'
+    );
+  });
+
+  it('external contract sucessfully completed', async () => {
+    const amount = ethers.utils.parseEther('1');
+    await stakerContract.connect(addr1).stake({
+      value: amount,
+    });
+    await stakerContract.connect(addr1).execute();
+
+    // check that the external contract is completed
+    const completed = await exampleExternalContract.completed();
+    expect(completed).to.equal(true);
+
+    // check that the external contract has the staked amount in it's balance
+    const externalContractBalance = await ethers.provider.getBalance(
+      exampleExternalContract.address
+    );
+    expect(externalContractBalance).to.equal(amount);
+
+    // check that the staking contract has 0 balance
+    const contractBalance = await ethers.provider.getBalance(
+      stakerContract.address
+    );
+    expect(contractBalance).to.equal(0);
+  });
+});
+```
 
 - The first test check that if the `execute()` function is called when the threshold is not reached it will revert the transaction with the correct error message
 - The second test is calling two consecutive times the `execute()` function. The staking process is already done and the transaction should be reverted, preventing doing it again.
@@ -236,7 +499,259 @@ If everything goes as expected, running `yarn test` should give you this output
 
 Here we go with the whole test coverage code
 
-{% gist https://gist.github.com/StErMi/08c8cac98b48f85fa662c32e8d4804f0 %}
+```ts
+const { ethers } = require('hardhat');
+const { use, expect } = require('chai');
+const { solidity } = require('ethereum-waffle');
+
+use(solidity);
+
+// Utilities methods
+const increaseWorldTimeInSeconds = async (seconds, mine = false) => {
+  await ethers.provider.send('evm_increaseTime', [seconds]);
+  if (mine) {
+    await ethers.provider.send('evm_mine', []);
+  }
+};
+
+describe('Staker dApp', () => {
+  let owner;
+  let addr1;
+  let addr2;
+  let addrs;
+
+  let stakerContract;
+  let exampleExternalContract;
+  let ExampleExternalContractFactory;
+
+  beforeEach(async () => {
+    // Deploy ExampleExternalContract contract
+    ExampleExternalContractFactory = await ethers.getContractFactory(
+      'ExampleExternalContract'
+    );
+    exampleExternalContract = await ExampleExternalContractFactory.deploy();
+
+    // Deploy Staker Contract
+    const StakerContract = await ethers.getContractFactory('Staker');
+    stakerContract = await StakerContract.deploy(
+      exampleExternalContract.address
+    );
+
+    // eslint-disable-next-line no-unused-vars
+    [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+  });
+
+  describe('Test contract utils methods', () => {
+    it('timeLeft() return 0 after deadline', async () => {
+      await increaseWorldTimeInSeconds(180, true);
+
+      const timeLeft = await stakerContract.timeLeft();
+      expect(timeLeft).to.equal(0);
+    });
+
+    it('timeLeft() return correct timeleft after 10 seconds', async () => {
+      const secondElapsed = 10;
+      const timeLeftBefore = await stakerContract.timeLeft();
+      await increaseWorldTimeInSeconds(secondElapsed, true);
+
+      const timeLeftAfter = await stakerContract.timeLeft();
+      expect(timeLeftAfter).to.equal(timeLeftBefore.sub(secondElapsed));
+    });
+  });
+
+  describe('Test stake() method', () => {
+    it('Stake event emitted', async () => {
+      const amount = ethers.utils.parseEther('0.5');
+
+      await expect(
+        stakerContract.connect(addr1).stake({
+          value: amount,
+        })
+      )
+        .to.emit(stakerContract, 'Stake')
+        .withArgs(addr1.address, amount);
+
+      // Check that the contract has the correct amount of ETH we just sent
+      const contractBalance = await ethers.provider.getBalance(
+        stakerContract.address
+      );
+      expect(contractBalance).to.equal(amount);
+
+      // Check that the contract has stored in our balances state the correct amount
+      const addr1Balance = await stakerContract.balances(addr1.address);
+      expect(addr1Balance).to.equal(amount);
+    });
+
+    it('Stake 0.5 ETH from single user', async () => {
+      const amount = ethers.utils.parseEther('0.5');
+      const tx = await stakerContract.connect(addr1).stake({
+        value: amount,
+      });
+      await tx.wait();
+
+      // Check that the contract has the correct amount of ETH we just sent
+      const contractBalance = await ethers.provider.getBalance(
+        stakerContract.address
+      );
+      expect(contractBalance).to.equal(amount);
+
+      // Check that the contract has stored in our balances state the correct amount
+      const addr1Balance = await stakerContract.balances(addr1.address);
+      expect(addr1Balance).to.equal(amount);
+    });
+
+    it('Stake reverted if deadline is reached', async () => {
+      // Let deadline be reached
+      await increaseWorldTimeInSeconds(180, true);
+
+      const amount = ethers.utils.parseEther('0.5');
+      await expect(
+        stakerContract.connect(addr1).stake({
+          value: amount,
+        })
+      ).to.be.revertedWith('Deadline is already reached');
+    });
+
+    it('Stake reverted if external contract is completed', async () => {
+      const amount = ethers.utils.parseEther('1');
+      // Complete the stake process
+      const txStake = await await stakerContract.connect(addr1).stake({
+        value: amount,
+      });
+      await txStake.wait();
+
+      // execute it
+      const txExecute = await stakerContract.connect(addr1).execute();
+      await txExecute.wait();
+
+      await expect(
+        stakerContract.connect(addr1).stake({
+          value: amount,
+        })
+      ).to.be.revertedWith('staking process already completed');
+    });
+  });
+
+  describe('Test execute() method', () => {
+    it('execute reverted because stake amount not reached threshold', async () => {
+      await expect(stakerContract.connect(addr1).execute()).to.be.revertedWith(
+        'Threshold not reached'
+      );
+    });
+
+    it('execute reverted because external contract already completed', async () => {
+      const amount = ethers.utils.parseEther('1');
+      await stakerContract.connect(addr1).stake({
+        value: amount,
+      });
+      await stakerContract.connect(addr1).execute();
+
+      await expect(stakerContract.connect(addr1).execute()).to.be.revertedWith(
+        'staking process already completed'
+      );
+    });
+
+    it('execute reverted because deadline is reached', async () => {
+      // reach the deadline
+      await increaseWorldTimeInSeconds(180, true);
+
+      await expect(stakerContract.connect(addr1).execute()).to.be.revertedWith(
+        'Deadline is already reached'
+      );
+    });
+
+    it('external contract sucessfully completed', async () => {
+      const amount = ethers.utils.parseEther('1');
+      await stakerContract.connect(addr1).stake({
+        value: amount,
+      });
+      await stakerContract.connect(addr1).execute();
+
+      // it seems to be a waffle bug see https://github.com/EthWorks/Waffle/issues/469
+      // test that our Stake Contract has successfully called the external contract's complete function
+      // expect('complete').to.be.calledOnContract(exampleExternalContract);
+
+      // check that the external contract is completed
+      const completed = await exampleExternalContract.completed();
+      expect(completed).to.equal(true);
+
+      // check that the external contract has the staked amount in it's balance
+      const externalContractBalance = await ethers.provider.getBalance(
+        exampleExternalContract.address
+      );
+      expect(externalContractBalance).to.equal(amount);
+
+      // check that the staking contract has 0 balance
+      const contractBalance = await ethers.provider.getBalance(
+        stakerContract.address
+      );
+      expect(contractBalance).to.equal(0);
+    });
+  });
+
+  describe('Test withdraw() method', () => {
+    it('Withdraw reverted if deadline is not reached', async () => {
+      await expect(
+        stakerContract.connect(addr1).withdraw(addr1.address)
+      ).to.be.revertedWith('Deadline is not reached yet');
+    });
+
+    it('Withdraw reverted if external contract is completed', async () => {
+      // Complete the stake process
+      const txStake = await stakerContract.connect(addr1).stake({
+        value: ethers.utils.parseEther('1'),
+      });
+      await txStake.wait();
+
+      // execute it
+      const txExecute = await stakerContract.connect(addr1).execute();
+      await txExecute.wait();
+
+      // Let time pass
+      await increaseWorldTimeInSeconds(180, true);
+
+      await expect(
+        stakerContract.connect(addr1).withdraw(addr1.address)
+      ).to.be.revertedWith('staking process already completed');
+    });
+
+    it('Withdraw reverted if address has no balance', async () => {
+      // Let time pass
+      await increaseWorldTimeInSeconds(180, true);
+
+      await expect(
+        stakerContract.connect(addr1).withdraw(addr1.address)
+      ).to.be.revertedWith("You don't have balance to withdraw");
+    });
+
+    it('Withdraw success!', async () => {
+      // Complete the stake process
+      const amount = ethers.utils.parseEther('1');
+      const txStake = await stakerContract.connect(addr1).stake({
+        value: amount,
+      });
+      await txStake.wait();
+
+      // Let time pass
+      await increaseWorldTimeInSeconds(180, true);
+
+      const txWithdraw = await stakerContract
+        .connect(addr1)
+        .withdraw(addr1.address);
+      await txWithdraw.wait();
+
+      // Check that the balance of the contract is 0
+      const contractBalance = await ethers.provider.getBalance(
+        stakerContract.address
+      );
+      expect(contractBalance).to.equal(0);
+
+      // Check that the balance of the user is +1
+      await expect(txWithdraw).to.changeEtherBalance(addr1, amount);
+    });
+  });
+});
+```
 
 Have you noticed that the test code coverage is far bigger than the Contract itself? That’s what we want to see! **Test all the things!**
 
